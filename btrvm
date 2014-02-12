@@ -1,0 +1,68 @@
+#!/bin/sh
+
+vmdir='/virt'
+vmbasedir="$vmdir/base"
+baseprefix='BASE.'
+
+msg() {
+	echo "btrvm: $*"
+}
+
+die() {
+	rc="$1"
+	shift
+	msg "$*" >&2
+	exit "$rc"
+}
+
+usage() {
+	cat <<-'POODLE'
+		usage: btrvm ACTION [parameters...]
+		  where ACTION is one of:
+		  
+		  clone ORIG NEW
+		    create a clone of the base VM "ORIG" with a name of "NEW"
+		  
+		  delete NAME
+		    delete the VM named NAME
+		
+		btrfs subvolumes are created and deleted automatically to make additional VMs
+		use as little storage as possible.
+	POODLE
+	exit "$1"
+}
+
+if [ "$#" -lt 1 ]; then
+	cmd='help'
+else
+	cmd="$1"
+	shift
+fi
+
+case "$cmd" in
+	clone|create|c)
+		[ "$#" -eq 2 ] || die 1 'please supply exactly 2 parameters'
+		orig="$1"; shift
+		name="$1"; shift
+		set -e
+		btrfs subvolume snapshot "$vmbasedir/$orig" "$vmdir/$name"
+		mv "$vmdir/$name/$baseprefix$orig.img" "$vmdir/$name/$name.img"
+		virt-clone -o "$baseprefix$orig" -n "$name" -f "$vmdir/$name/$name.img" --preserve-data
+		set +e
+		;;
+	delete|remove|d|r)
+		[ "$#" -eq 1 ] || die 1 'please supply exactly 1 parameter'
+		name="$1"; shift
+		set -e
+		virsh destroy "$name" || true
+		virsh undefine "$name"
+		btrfs subvolume delete "$vmdir/$name"
+		set +e
+		;;
+	help)
+		usage 0
+		;;
+	*)
+		usage 1
+		;;
+esac
