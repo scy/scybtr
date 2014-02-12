@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# When putting this into your crontab, keep in mind that the "btrfs" command
+# might not be in the PATH.
+
+# This script is not POSIX: it depends on gawk, GNU date and, of course, btrfs.
+
+die() {
+	rc="$1"
+	shift
+	echo "btrsnap: $*" >&2
+	exit "$rc"
+}
+
+[ "$#" -eq 1 ] || die 1 'please supply the directory to store the snapshots in as a parameter'
+
+[ "$(id -u)" -eq 0 ] || die 1 'this command needs to be run as root'
+
+snapbase="$1"
+
+ts="$(date +%s)"
+snapname="$(date -d "@$ts" '+%Y-%m-%d-%H%M')"
+
+snappath="$snapbase/$snapname"
+
+btrfs subvolume snapshot -r / "$snappath"
+
+# Remove snapshots older than 24 hours.
+for date in $(btrfs subvolume list / | gawk 'match($0, / path snap\/([0-9-]{15})$/, m) && m[1] < "'"$(date -d '24 hours ago' '+%Y-%m-%d-%H%M')"'" { print m[1]; }'); do
+	btrfs subvolume delete "$snapbase/$date"
+done
