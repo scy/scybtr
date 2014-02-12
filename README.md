@@ -18,7 +18,20 @@ Create lightweight throw-away VMs using libvirt and btrfs subvolumes. Please not
 
 Create a basic VM with its storage on a subvolume. How you're doing this is up to you. In the end you need a VM that's for example called `BASE.debian-7.4` with storage in a (read-only?) subvolume `/virt/base/debian-7.4/BASE.debian-7.4.img`.
 
-(I could maybe write a bit more here about how to do that.)
+You could for example do it like in the following snippet. Note that this should be considered pseudocode, I did not test these commands!
+
+    mkdir -p /virt/base
+    btrfs subvolume create /virt/newtemplate
+    # The following will set up a new Debian based on my preseed file.
+    # You'll most likely want to create something different.
+    virt-install --name=newtemplate --ram=1024 --vcpus=2 --disk=path=/virt/newtemplate/BASE.debian-7.4.img,format=raw,size=10,perms=rw,cache=none,bus=virtio --os-type=linux --os-variant=debianwheezy --network=network=default --nographics --location=http://ftp.de.debian.org/debian/dists/wheezy/main/installer-amd64/ --extra-args='auto=true priority=critical url=http://dl.dropboxusercontent.com/u/18203695/preseed.vm.cfg console=ttyS0,115200n8 TERM=linux'
+    # After the installation is complete:
+    virsh shutdown newtemplate
+    btrfs subvolume snapshot -r /virt/newtemplate /virt/base/debian-7.4
+    virt-clone -o newtemplate -n BASE.debian-7.4 -f /virt/base/debian-7.4/BASE.debian-7.4.img --preserve-data
+    # Get rid of the writable template VM.
+    virsh undefine newtemplate
+    btrfs subvolume delete /virt/newtemplate
 
 ### Creating a New VM
 
