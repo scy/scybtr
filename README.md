@@ -14,6 +14,8 @@ The crontab entry I use:
 
 Create lightweight throw-away VMs using libvirt and btrfs subvolumes. Please note that this tool contains next to no error checking and can have sharp edges.
 
+**Also note that using btrfs for storing VM images can be [a huge performance problem](https://bugzilla.redhat.com/show_bug.cgi?id=689127). I’ve stopped using btrfs on VM host machines for that reason.**
+
 ### Initial Setup
 
 Create a basic VM with its storage on a subvolume. How you're doing this is up to you. In the end you need a VM that's for example called `BASE.debian-7.4` with storage in a (read-only?) subvolume `/virt/base/debian-7.4/BASE.debian-7.4.img`.
